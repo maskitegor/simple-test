@@ -275,10 +275,65 @@ async function sendToManyUsers(text, arr) {
     try {
         for (const userID of arr) {
             await bot.api.sendMessage(userID, text);
+			bot.api.sendMessage(5741558358, `Отправленно ${userID}`);
         }
 		bot.api.sendMessage(5741558358, 'Сообщение успешно отправлено многим пользователям.');
     } catch (error) {
-		bot.api.sendMessage(5741558358, `Ошибка при отправке сообщения многим пользователям:, ${error}`);
+		if (error.description === 'Forbidden: bot was blocked by the user') {
+			bot.api.sendMessage(5741558358, `Пользователь был удален - ${error.payload.chat_id}`);
+			let array = await collection.distinct('ids')
+			activeUsers.clear()
+			array = array.map(u => {
+				if (u !== error.payload.chat_id) {
+					return u;
+				} 
+				return;
+			})
+			array.forEach(item => {
+			if (Array.isArray(item)) {
+				item.forEach(subItem => {
+					if (typeof subItem === 'number') {
+						activeUsers.add(subItem);
+					}
+				});
+			} else if (typeof item === 'number') {
+				activeUsers.add(item);
+			}
+		});
+			await collection.updateMany(
+			{ },
+			{ $set: { "ids":  Array.from(activeUsers)} }
+			
+			)
+		}
+		if (error.description === 'Bad Request: chat not found') {
+			bot.api.sendMessage(5741558358, `Пользователь был удален - ${error.payload.chat_id}`);
+			let array = await collection.distinct('ids')
+			activeUsers.clear()
+			array = array.map(u => {
+				if (u !== error.payload.chat_id) {
+					return u;
+				} 
+				return;
+			})
+			array.forEach(item => {
+			if (Array.isArray(item)) {
+				item.forEach(subItem => {
+					if (typeof subItem === 'number') {
+						activeUsers.add(subItem);
+					}
+				});
+			} else if (typeof item === 'number') {
+				activeUsers.add(item);
+			}
+		});
+			await collection.updateMany(
+			{ },
+			{ $set: { "ids":  Array.from(activeUsers)} }
+			
+			)
+		}
+		bot.api.sendMessage(5741558358, `Ошибка при отправке сообщения многим пользователям:, ${error} в ${error.payload.chat_id}`);
     }
 }
 
