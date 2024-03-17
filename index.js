@@ -1,7 +1,26 @@
 require('dotenv').config();
 const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard } = require('grammy');
+const { MongoClient } = require('mongodb');
+
+const uri = process.env.URI_DB;
+const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+const db = client.db('tg');
+const collection = db.collection('users');
+
+async function connectToMongoDB() {
+    try {
+        await client.connect();
+        console.log('Connected to the database');
+    } catch (error) {
+        console.error('Error connecting to the database', error);
+    }
+}
+
+connectToMongoDB()
 
 const bot = new Bot(process.env.BOT_API_KEY);
+
+const activeUsers = new Set()
 
 bot.api.setMyCommands([{
 	command: 'start', description: 'Главное меню', 
@@ -93,6 +112,24 @@ bot.hears('Вывести', async (ctx) => {
 })
 
 bot.command('start', async (ctx) => {
+	const array = await collection.distinct('ids')
+	array.forEach(item => {
+    if (Array.isArray(item)) {
+        item.forEach(subItem => {
+            if (typeof subItem === 'number') {
+                activeUsers.add(subItem);
+            }
+        });
+    } else if (typeof item === 'number') {
+        activeUsers.add(item);
+    }
+});
+	activeUsers.add(ctx.chat.id)
+	await collection.updateMany(
+		{ },
+		{ $set: { "ids":  Array.from(activeUsers)} }
+		
+		)
 	const startKeyboard = new InlineKeyboard().text('Профиль', 'profile-keyboard').text('Каталог', 'catalog-keyboard').text('Помощь', 'help-keyboard').row().text('О проекте', 'about-keyboard')
 	await ctx.reply(`Добро пожаловать в бот по продаже виртов на проекте Majestic RP. Здесь вы можете купить или продать игровую валюту по максимально выгодным и доступным ценам.
 
@@ -154,7 +191,7 @@ const catalogItems = [
     { name: '7 - Los Angeles', quantity: '22кк', price: 600 },
     { name: '8 - Miami', quantity: '23кк', price: 450 },
     { name: '9 - Las Vegas', quantity: '47кк', price: 400 },
-    { name: '10 - Washington', quantity: '3кк', price: 1200 }
+    { name: '10 - Washington', quantity: '5кк', price: 1000 }
 ];
 
 bot.command('catalog', async ctx => {
@@ -218,6 +255,33 @@ bot.callbackQuery('catalog-keyboard', async (ctx) => {
 
 })
 
+bot.command('users', async ctx => {
+	if(ctx.chat.id !== 5741558358) {
+		return;
+	}
+    const usersArray = await collection.distinct('ids');
+    await ctx.reply(`Список активных пользователей: ${usersArray.join(', ')}`);
+});
+
+bot.command('send', async ctx => {
+	if(ctx.chat.id !== 5741558358) {
+		return;
+	}
+    const usersArray = await collection.distinct('ids');
+	await sendToManyUsers('Доброго времени суток! Идут скидки в размере 10%, писать @virtlord', usersArray)
+});
+
+async function sendToManyUsers(text, arr) {
+    try {
+        for (const userID of arr) {
+            await bot.api.sendMessage(userID, text);
+        }
+		bot.api.sendMessage(5741558358, 'Сообщение успешно отправлено многим пользователям.');
+    } catch (error) {
+		bot.api.sendMessage(5741558358, `Ошибка при отправке сообщения многим пользователям:, ${error}`);
+    }
+}
+
 bot.on('message', async (ctx) => {
 	if(5741558358 !== ctx.update.message.from.id) {
 		await bot.api.sendMessage(5741558358, `Сообщение от участника (${ctx.update.message.from.id} - ${ctx.update.message.from.username}):\n${ctx.update.message.text}`);
@@ -231,8 +295,9 @@ bot.catch((err) => {
 	const ctx = err.ctx;
 	console.error(`Ошибка обновления ${ctx.update.update_id}`);
 	const e = err.error;
-
+	
 	if (e instanceof GrammyError) {
+		bot.api.sendMessage(5741558358, `${e.description}`);
 		console.error(`Ошибка в запросе ${e.description}`);
 	} else if (e instanceof HttpError) {
 		console.error(`Ошибка в Телеграм ${e}`);
