@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard, InputFile } = require('grammy');
+const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard, webhookCallback } = require('grammy');
 const { MongoClient } = require('mongodb');
 
 const uri = process.env.URI_DB;
@@ -407,5 +407,7 @@ bot.catch((err) => {
 		console.error(`Неизвестная ошибка ${e}`);
 	}
 });
+
+module.exports = webhookCallback(bot, 'http');
 
 bot.start();
