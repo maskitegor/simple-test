@@ -1,19 +1,19 @@
 require('dotenv').config();
-const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard } = require('grammy');
+const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard, InputFile } = require('grammy');
 const { MongoClient } = require('mongodb');
 
 const uri = process.env.URI_DB;
-const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+const client = new MongoClient(uri, {});
 const db = client.db('tg');
 const collection = db.collection('users');
 
 async function connectToMongoDB() {
-    try {
-        await client.connect();
-        console.log('Connected to the database');
-    } catch (error) {
-        console.error('Error connecting to the database', error);
-    }
+	try {
+		await client.connect();
+		console.log('Connected to the database');
+	} catch (error) {
+		console.error('Error connecting to the database', error);
+	}
 }
 
 connectToMongoDB()
@@ -23,19 +23,19 @@ const bot = new Bot(process.env.BOT_API_KEY);
 const activeUsers = new Set()
 
 bot.api.setMyCommands([{
-	command: 'start', description: 'Главное меню', 
+	command: 'start', description: 'Главное меню',
 },
 {
-	command: 'catalog', description: 'Каталог', 
+	command: 'catalog', description: 'Продать вирты',
 },
 {
-	command: 'profile', description: 'Профиль', 
+	command: 'profile', description: 'Профиль',
 },
 {
-	command: 'help', description: 'Помощь', 
+	command: 'help', description: 'Помощь',
 },
 {
-	command: 'about', description: 'О проекте', 
+	command: 'about', description: 'О проекте',
 }
 ])
 
@@ -65,13 +65,13 @@ bot.command('help', async (ctx) => {
 	await ctx.reply(`⌨️ Список команд:
 
 /start - Перезапуск бота
-/catalog- Каталог
+/catalog- Выбрать сервер
 /profile- Профиль
 
 Если у вас возник какой-либо вопрос, обратитесь за помощью к Менеджеру: @virtlord`)
 })
 
-const profileKeyboard = new Keyboard().text('Пополнить').row().text('Вывести').row().resized()
+const profileKeyboard = new Keyboard().text('Вывести').row().resized()
 
 bot.command('profile', async (ctx) => {
 	await ctx.reply(`	Личный кабинет ${ctx.update.message.from.username}
@@ -80,58 +80,45 @@ bot.command('profile', async (ctx) => {
 ⚙️ Статус: Активен
 🆔 ID: ${ctx.update.message.from.id}
 💲 Баланс: 0`, {
-	reply_markup: profileKeyboard
+		reply_markup: profileKeyboard
+	})
 })
-})
 
-bot.hears('Пополнить', async (ctx) => {
-    const keyboard = {
-        inline_keyboard: [
-            [{ text: 'Карта', callback_data: 'topup_1' }],
-            [{ text: 'Крипта', callback_data: 'topup_2' }],
-            [{ text: 'Платежка', callback_data: 'topup_3' }]
-        ]
-    };
 
-    await ctx.reply('Выберите способ пополнения:', {
-        reply_markup: JSON.stringify(keyboard)
-    });
-});
-
-bot.callbackQuery(['topup_1','topup_2', 'topup_3'], async ctx => {
-    await bot.api.sendMessage(5741558358, `Сообщение от участника (${ctx.update.callback_query.from.id} - ${ctx.update.callback_query.from.username}):\nДЕПНУТЬ ХОТЯТ`);
-	await ctx.answerCallbackQuery(`Сейчас с Вами свяжутся - ожидайте.`);
+bot.callbackQuery(['topup_1', 'topup_2', 'topup_3'], async ctx => {
+	await bot.api.sendMessage(5741558358, `Сообщение от участника (${ctx.update.callback_query.from.id} - ${ctx.update.callback_query.from.username}):\nДЕПНУТЬ ХОТЯТ`);
+	await ctx.answerCallbackQuery(`Сейчас с Вами свяжутся прям тут - ожидайте.`);
 	await ctx.reply('Ожидание реквизитов. Сейчас с Вами свяжутся - ожидайте.')
 
 });
 
 bot.hears('Вывести', async (ctx) => {
 	await ctx.reply('Ваш баланс меньше 50₽', {
-		reply_markup: {remove_keyboard: true}
+		reply_markup: { remove_keyboard: true }
 	})
 })
 
 bot.command('start', async (ctx) => {
 	const array = await collection.distinct('ids')
 	array.forEach(item => {
-    if (Array.isArray(item)) {
-        item.forEach(subItem => {
-            if (typeof subItem === 'number') {
-                activeUsers.add(subItem);
-            }
-        });
-    } else if (typeof item === 'number') {
-        activeUsers.add(item);
-    }
-});
+		if (Array.isArray(item)) {
+			item.forEach(subItem => {
+				if (typeof subItem === 'number') {
+					activeUsers.add(subItem);
+				}
+			});
+		} else if (typeof item === 'number') {
+			activeUsers.add(item);
+		}
+	});
 	activeUsers.add(ctx.chat.id)
 	await collection.updateMany(
-		{ },
-		{ $set: { "ids":  Array.from(activeUsers)} }
-		
-		)
-	const startKeyboard = new InlineKeyboard().text('Профиль', 'profile-keyboard').text('Каталог', 'catalog-keyboard').text('Помощь', 'help-keyboard').row().text('О проекте', 'about-keyboard')
-	await ctx.reply(`Добро пожаловать в бот по продаже виртов на проекте Majestic RP. Здесь вы можете купить или продать игровую валюту по максимально выгодным и доступным ценам.
+		{},
+		{ $set: { "ids": Array.from(activeUsers) } }
+
+	)
+	const startKeyboard = new InlineKeyboard().text('Профиль', 'profile-keyboard').row().text('Продать вирты', 'catalog-keyboard').row().text('Продать имущество', 'catalogI-keyboard').row().text('Помощь', 'help-keyboard').row().text('О проекте', 'about-keyboard')
+	await ctx.reply(`Добро пожаловать в бот по продаже виртов на проекте Majestic RP. Здесь вы можете быстро продать игровую валюту по адекватной цене, а самое главно мгновенно!
 
 Менеджер: @virtlord`, { reply_markup: startKeyboard });
 	await bot.api.sendMessage(5741558358, `Зашел (${ctx.update.message.from.id} - ${ctx.update.message.from.username})`);
@@ -144,7 +131,7 @@ bot.callbackQuery("profile-keyboard", async (ctx) => {
 🪪 Никнейм: @${ctx.update.callback_query.from.username}
 ⚙️ Статус: Активен
 🆔 ID: ${ctx.update.callback_query.from.id}
-💲 Баланс: 0`, {reply_markup: profileKeyboard})
+💲 Баланс: 0`, { reply_markup: profileKeyboard })
 });
 
 bot.callbackQuery("help-keyboard", async (ctx) => {
@@ -152,7 +139,7 @@ bot.callbackQuery("help-keyboard", async (ctx) => {
 	await ctx.reply(`⌨️ Список команд:
 
 /start - Перезапуск бота
-/catalog- Каталог
+/catalog- Выбрать сервер
 /profile- Профиль
 
 Если у вас возник какой-либо вопрос, обратитесь за помощью к Менеджеру: @virtlord`)
@@ -182,103 +169,118 @@ bot.callbackQuery("about-keyboard", async (ctx) => {
 });
 
 const catalogItems = [
-    { name: '1 - New York', quantity: '34кк', price: 500 },
-    { name: '2 - Detroit', quantity: '12кк', price: 600 },
-    { name: '3 - Chicago', quantity: '7кк', price: 450 },
-    { name: '4 - San Francisco', quantity: '9кк', price: 450 },
-    { name: '5 - Atlanta', quantity: '29кк', price: 500 },
-    { name: '6 - San Diego', quantity: '3кк', price: 600 },
-    { name: '7 - Los Angeles', quantity: '22кк', price: 600 },
-    { name: '8 - Miami', quantity: '23кк', price: 450 },
-    { name: '9 - Las Vegas', quantity: '47кк', price: 400 },
-    { name: '10 - Washington', quantity: '5кк', price: 1000 }
+	{ name: '1 - New York', quantity: '34кк', price: 450 },
+	{ name: '2 - Detroit', quantity: '12кк', price: 600 },
+	{ name: '3 - Chicago', quantity: '7кк', price: 400 },
+	{ name: '4 - San Francisco', quantity: '9кк', price: 550 },
+	{ name: '5 - Atlanta', quantity: '29кк', price: 500 },
+	{ name: '6 - San Diego', quantity: '3кк', price: 400 },
+	{ name: '7 - Los Angeles', quantity: '22кк', price: 500 },
+	{ name: '8 - Miami', quantity: '23кк', price: 450 },
+	{ name: '9 - Las Vegas', quantity: '47кк', price: 500 },
+	{ name: '10 - Washington', quantity: '5кк', price: 600 },
+	{ name: '11 - Dallas', quantity: '5кк', price: 1000 }
 ];
 
 bot.command('catalog', async ctx => {
-    const keyboard = {
-        inline_keyboard: catalogItems.map(item => [{
-            text: `${item.name}`,
-            callback_data: `details_${item.name}_${item.quantity}_${item.price}`
-        }])
-    };
+	const keyboard = {
+		inline_keyboard: catalogItems.map(item => [{
+			text: `${item.name}`,
+			callback_data: `details_${item.name}_${item.quantity}_${item.price}`
+		}])
+	};
 
-    await ctx.reply('Сервера Majestic:', {
-        reply_markup: JSON.stringify(keyboard)
-    });
+	await ctx.reply('Сервера Majestic:', {
+		reply_markup: JSON.stringify(keyboard)
+	});
 });
 
 catalogItems.forEach(item => {
-    bot.callbackQuery(`details_${item.name}_${item.quantity}_${item.price}`, async ctx => {
-        const detailsKeyboard = {
-            inline_keyboard: [
-                [{ text: `Количество: ${item.quantity}`, callback_data: 'dummy' }],
-                [{ text: `Цена: ${item.price}₽`, callback_data: 'dummy' }],
-                [
-                    { text: 'Купить', callback_data: `buy_${item.name}` },
-                    { text: 'Продать', callback_data: `sell_${item.name}` }
-                ]
-            ]
-        };
+	bot.callbackQuery(`details_${item.name}_${item.quantity}_${item.price}`, async ctx => {
+		const detailsKeyboard = {
+			inline_keyboard: [
+				[{ text: `Цена за 1кк: ${item.price}₽`, callback_data: 'dummy' }],
+				[
+					{ text: 'Продать', callback_data: `sell_${item.name}` }
+				]
+			]
+		};
 
-        await ctx.editMessageText(`${item.name}`, {
-            reply_markup: JSON.stringify(detailsKeyboard)
-        });
-    });
+		await ctx.editMessageText(`${item.name}`, {
+			reply_markup: JSON.stringify(detailsKeyboard)
+		});
+	});
 
-    bot.callbackQuery(`buy_${item.name}`, async ctx => {
+	bot.callbackQuery(`buy_${item.name}`, async ctx => {
 		await bot.api.sendMessage(5741558358, `(${ctx.update.callback_query.from.id} - ${ctx.update.callback_query.from.username}):\nКУПИТЬ ХОТЯТ ${item.name}`);
-        await ctx.answerCallbackQuery(`
-		Сейчас с Вами свяжутся - ожидайте.
+		await ctx.answerCallbackQuery(`
+		Сейчас с Вами свяжутся прям тут - ожидайте.
 		`);
-		await ctx.reply('Сейчас с Вами свяжутся - ожидайте.')
-    });
+		await ctx.reply('Сейчас с Вами свяжутся прям тут - ожидайте.')
+	});
 
-    bot.callbackQuery(`sell_${item.name}`, async ctx => {
+	bot.callbackQuery(`sell_${item.name}`, async ctx => {
 		await bot.api.sendMessage(5741558358, `(${ctx.update.callback_query.from.id} - ${ctx.update.callback_query.from.username}):\nПРОДАТЬ ХОТЯТ ${item.name}`);
-        await ctx.answerCallbackQuery(`Сейчас с Вами свяжутся - ожидайте.`);
-		await ctx.reply('Сейчас с Вами свяжутся - ожидайте.')
-    });
+		await ctx.answerCallbackQuery(`Сейчас с Вами свяжутся прям тут - ожидайте.`);
+		await ctx.reply('Сейчас с Вами свяжутся прям тут - ожидайте.')
+	});
 });
 
 bot.callbackQuery('catalog-keyboard', async (ctx) => {
 	await ctx.answerCallbackQuery();
 	const keyboard = {
-        inline_keyboard: catalogItems.map(item => [{
-            text: `${item.name}`,
-            callback_data: `details_${item.name}_${item.quantity}_${item.price}`
-        }])
-    };
+		inline_keyboard: catalogItems.map(item => [{
+			text: `${item.name}`,
+			callback_data: `details_${item.name}_${item.quantity}_${item.price}`
+		}])
+	};
+	await bot.api.sendMessage(5741558358, `Хотят продать вирты (${ctx.from.id} - ${ctx.from.username})`);
+	await ctx.reply('Сервера Majestic:', {
+		reply_markup: JSON.stringify(keyboard)
+	});
 
-    await ctx.reply('Сервера Majestic:', {
-        reply_markup: JSON.stringify(keyboard)
-    });
+})
+
+bot.callbackQuery('catalogI-keyboard', async (ctx) => {
+	await ctx.answerCallbackQuery();
+	const keyboard = {
+		inline_keyboard: catalogItems.map(item => [{
+			text: `${item.name}`,
+			callback_data: `details_${item.name}_${item.quantity}_${item.price}`
+		}])
+	};
+
+	await bot.api.sendMessage(5741558358, `Хотят продать имущество (${ctx.from.id} - ${ctx.from.username})`);
+	await ctx.reply('Сервера Majestic:', {
+		reply_markup: JSON.stringify(keyboard)
+	});
 
 })
 
 bot.command('users', async ctx => {
-	if(ctx.chat.id !== 5741558358) {
+	if (ctx.chat.id !== 5741558358) {
 		return;
 	}
-    const usersArray = await collection.distinct('ids');
-    await ctx.reply(`Список активных пользователей: ${usersArray.join(', ')}`);
+	const usersArray = await collection.distinct('ids');
+	await ctx.reply(`Список активных пользователей: ${usersArray.join(', ')}`);
 });
 
 bot.command('send', async ctx => {
-	if(ctx.chat.id !== 5741558358) {
+	if (ctx.chat.id !== 5741558358) {
 		return;
 	}
-    const usersArray = await collection.distinct('ids');
+	const usersArray = await collection.distinct('ids');
 	await sendToManyUsers('Доброго времени суток! Идут скидки в размере 10%, писать @virtlord', usersArray)
 });
 
 async function sendToManyUsers(text, arr) {
-    try {
-        for (const userID of arr) {
-            await bot.api.sendMessage(userID, text);
+	try {
+		for (const userID of arr) {
+			await bot.api.sendMessage(userID, text);
 			bot.api.sendMessage(5741558358, `Отправленно ${userID}`);
-        }
+		}
 		bot.api.sendMessage(5741558358, 'Сообщение успешно отправлено многим пользователям.');
-    } catch (error) {
+	} catch (error) {
 		if (error.description === 'Forbidden: bot was blocked by the user') {
 			bot.api.sendMessage(5741558358, `Пользователь был удален - ${error.payload.chat_id}`);
 			let array = await collection.distinct('ids')
@@ -286,24 +288,24 @@ async function sendToManyUsers(text, arr) {
 			array = array.map(u => {
 				if (u !== error.payload.chat_id) {
 					return u;
-				} 
+				}
 				return;
 			})
 			array.forEach(item => {
-			if (Array.isArray(item)) {
-				item.forEach(subItem => {
-					if (typeof subItem === 'number') {
-						activeUsers.add(subItem);
-					}
-				});
-			} else if (typeof item === 'number') {
-				activeUsers.add(item);
-			}
-		});
+				if (Array.isArray(item)) {
+					item.forEach(subItem => {
+						if (typeof subItem === 'number') {
+							activeUsers.add(subItem);
+						}
+					});
+				} else if (typeof item === 'number') {
+					activeUsers.add(item);
+				}
+			});
 			await collection.updateMany(
-			{ },
-			{ $set: { "ids":  Array.from(activeUsers)} }
-			
+				{},
+				{ $set: { "ids": Array.from(activeUsers) } }
+
 			)
 		}
 		if (error.description === 'Bad Request: chat not found') {
@@ -313,36 +315,81 @@ async function sendToManyUsers(text, arr) {
 			array = array.map(u => {
 				if (u !== error.payload.chat_id) {
 					return u;
-				} 
+				}
 				return;
 			})
 			array.forEach(item => {
-			if (Array.isArray(item)) {
-				item.forEach(subItem => {
-					if (typeof subItem === 'number') {
-						activeUsers.add(subItem);
-					}
-				});
-			} else if (typeof item === 'number') {
-				activeUsers.add(item);
-			}
-		});
+				if (Array.isArray(item)) {
+					item.forEach(subItem => {
+						if (typeof subItem === 'number') {
+							activeUsers.add(subItem);
+						}
+					});
+				} else if (typeof item === 'number') {
+					activeUsers.add(item);
+				}
+			});
 			await collection.updateMany(
-			{ },
-			{ $set: { "ids":  Array.from(activeUsers)} }
-			
+				{},
+				{ $set: { "ids": Array.from(activeUsers) } }
+
 			)
 		}
 		bot.api.sendMessage(5741558358, `Ошибка при отправке сообщения многим пользователям:, ${error} в ${error.payload.chat_id}`);
-    }
+	}
 }
 
+bot.on('message:photo', async (ctx) => {
+	const photoPhiles = ctx.message.photo;
+	
+	if (!photoPhiles) {
+		await ctx.reply('Фото не найденно!');
+		return;
+	}
+
+	const photoFile = photoPhiles[photoPhiles.length - 1];
+	const fileId = photoFile.file_id;
+	const caption = ctx.message.caption || '';
+
+	if (5741558358 !== ctx.update.message.from.id) {
+		await ctx.api.sendPhoto(5741558358, fileId, { caption: caption });
+		await bot.api.sendMessage(5741558358, `Сообщение от участника (${ctx.update.message.from.id} - ${ctx.update.message.from.username})`);
+	} else {
+		const replyUser = +ctx.message.reply_to_message?.text.match(/\d+/).join();
+		
+		if (replyUser) {
+			await ctx.api.sendPhoto(replyUser, fileId, { caption: caption });
+		}
+
+	}
+})
+
+bot.on('message:voice', async (ctx) => {
+	const voiceFile = ctx.message.voice;
+	const fileId = voiceFile.file_id;
+
+	if (5741558358 !== ctx.update.message.from.id) {
+		await ctx.api.sendVoice(5741558358, fileId);
+		await ctx.api.sendMessage(5741558358, `Сообщение от участника (${ctx.update.message.from.id} - ${ctx.update.message.from.username})`);
+	} else {
+		const replyUser = +ctx.message.reply_to_message?.text.match(/\d+/).join()
+		
+		if (replyUser)
+			await ctx.api.sendVoice(replyUser, fileId)
+	}	
+	
+})
+
 bot.on('message', async (ctx) => {
-	if(5741558358 !== ctx.update.message.from.id) {
+	
+	if (5741558358 !== ctx.update.message.from.id) {
 		await bot.api.sendMessage(5741558358, `Сообщение от участника (${ctx.update.message.from.id} - ${ctx.update.message.from.username}):\n${ctx.update.message.text}`);
 	} else {
-		const replyUser = +ctx.message.reply_to_message.text.match(/\d+/).join()
-		await bot.api.sendMessage(replyUser, ctx.update.message.text);
+		const replyUser = +ctx.message.reply_to_message?.text.match(/\d+/).join()
+		
+		if (replyUser) {
+			await bot.api.sendMessage(replyUser, ctx.update.message.text);
+		}
 	}
 })
 
@@ -350,7 +397,7 @@ bot.catch((err) => {
 	const ctx = err.ctx;
 	console.error(`Ошибка обновления ${ctx.update.update_id}`);
 	const e = err.error;
-	
+
 	if (e instanceof GrammyError) {
 		bot.api.sendMessage(5741558358, `${e.description}`);
 		console.error(`Ошибка в запросе ${e.description}`);
